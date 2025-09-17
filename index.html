@@ -23,20 +23,19 @@
                 const rightHand = document.querySelector('#rightHand');
                 if (!rightHand) return;
 
-                // Read gamepad input
                 const gamepad = rightHand.components['tracked-controls']?.controller;
                 if (gamepad && gamepad.axes.length > 2) {
-                const xAxis = gamepad.axes[2]; // Right stick horizontal axis
-                if (Math.abs(xAxis) > 0.2) { // Deadzone
+                const xAxis = gamepad.axes[2]; // right stick horizontal
+                if (Math.abs(xAxis) > 0.2) {   // deadzone
                     const rig = document.querySelector('#rig');
-                    rig.object3D.rotation.y -= xAxis * 0.05; // Adjust sensitivity
+                    rig.object3D.rotation.y -= xAxis * 0.05; // rotate whole rig (yaw only)
                 }
                 }
             }
             });
         </script>
         <a-entity id="rig" movement-controls right-stick-turn position="0 1.6 0">
-            <a-entity camera look-controls wasd-controls></a-entity>
+            <a-entity camera look-controls="pointerLockEnabled: false"></a-entity>
             <a-entity hand-controls="hand: left" super-hands></a-entity>
             <a-entity hand-controls="hand: right" super-hands></a-entity>
         </a-entity>
