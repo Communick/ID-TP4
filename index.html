@@ -24,10 +24,54 @@
                 position="0 4 2"></a-entity>
       <!-- Lumière ambiante -->
       <a-entity light="type: ambient; color: #BBB"></a-entity>
+      <script>
+        AFRAME.registerComponent('joystick-movement', {
+          schema: {
+            speed: {default: 2} // meters per second
+          },
+          init: function() {
+            this.direction = new THREE.Vector3();
+            this.rotationEuler = new THREE.Euler();
+            this.vec3 = new THREE.Vector3();
+          },
+          tick: function(time, delta) {
+            let gamepads = navigator.getGamepads && navigator.getGamepads();
+            if (!gamepads) return;
+
+            let moveX = 0, moveY = 0;
+            // Try both left (0) and right (1) controller for stick input
+            for (let i = 0; i < gamepads.length; ++i) {
+              let g = gamepads[i];
+              if (g && g.axes && g.axes.length >= 2 && g.connected) {
+                // Usually left stick: axes[0] = left/right, axes[1] = up/down
+                // Choose left only if VR, could adjust for specific controllers
+                moveX = g.axes[0];
+                moveY = -g.axes[1]; // A-Frame: up is negative Y for forward
+                if (Math.abs(moveX) > 0.12 || Math.abs(moveY) > 0.12) break;
+              }
+            }
+
+            // No movement? (deadzone handling)
+            if (Math.abs(moveX) < 0.12 && Math.abs(moveY) < 0.12) return;
+
+            // Get camera Y rotation
+            var rig = this.el.object3D;
+            this.rotationEuler.setFromQuaternion(rig.quaternion, 'YXZ');
+            var yaw = this.rotationEuler.y;
+
+            // Calculate move direction in world space
+            this.direction.set(moveX, 0, moveY);
+            this.direction.applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
+            this.direction.multiplyScalar(this.data.speed * delta/1000);
+
+            // Move rig
+            rig.position.add(this.direction);
+          }
+        });
+      </script>
       <!-- Rig caméra + contrôleurs (Exercice 1) -->
-      <a-entity id="rig" movement-controls>
-        <a-entity camera look-controls wasd-controls
-            position="0 1.6 4"></a-entity>
+      <a-entity id="rig" joystick-movement="speed: 2">
+        <a-entity camera look-controls position="0 1.6 4"></a-entity>
         <a-entity laser-controls="hand: left" super-hands></a-entity>
         <a-entity laser-controls="hand: right" super-hands></a-entity>
       </a-entity>
