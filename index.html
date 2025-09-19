@@ -126,9 +126,7 @@
   });
   </script>
     <a-scene physics="gravity: -9.8">
-      <a-entity id="ground" geometry="primitive:plane;width:40;height:40"
-              rotation="-90 0 0" material="color:#7da07d;roughness:1;metalness:0"
-              shadow="receive:true"></a-entity>
+      <a-plane id="ground" position="0 0 0" rotation="-90 0 0" width="10" height="10" color="#7BC8A4" static-body shadow="receive: true"></a-plane>
       <a-box position="-1 0.5 -3" grabbable dynamic-body color="#4CC3D9" shadow="cast:true;receive:true"></a-box>
       <a-sphere position="2 1 -3" radius="0.7" grabbable dynamic-body color="#EF2D5E" shadow="cast:true;receive:true"></a-sphere>
       <a-entity light="type: directional; intensity: 0.8; castShadow: true" position="0 4 2"></a-entity>
