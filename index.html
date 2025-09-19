@@ -134,7 +134,7 @@
       <a-entity light="type: directional; intensity: 0.8; castShadow: true" position="0 4 2"></a-entity>
       <a-entity light="type: ambient; color: #BBB"></a-entity>
       <a-box id="gun" position="0 1.2 -1" color="#222" grabbable dynamic-body width="0.2" height="0.12" depth="0.4" shootable></a-box>
-      
+
       <a-entity teleport-controls="enabled: false"></a-entity>
       <!-- Rig + caméra + contrôleurs -->
     <a-entity id="rig" position="0 1.6 5" rotation="0 0 0" wasd-controls="acceleration:20">
@@ -143,8 +143,8 @@
       </a-entity>
 
       <!-- Contrôleurs -->
-      <a-entity id="left"  hand-controls="hand: left"  left-stick-move="speed:3"></a-entity>
-      <a-entity id="right" hand-controls="hand: right" right-stick-turn="turnSpeed:120; deadzone:0.08"></a-entity>
+      <a-entity id="left"   hand-controls="hand: left; modelStyle: lowPoly; handModelStyle: disabled" left-stick-move="speed:3"></a-entity>
+      <a-entity id="right"  hand-controls="hand: right; modelStyle: lowPoly; handModelStyle: disabled" right-stick-turn="turnSpeed:120; deadzone:0.08"></a-entity>
     </a-entity>
 
       <a-entity webxr="optionalFeatures: local-floor, bounded-floor"></a-entity>
