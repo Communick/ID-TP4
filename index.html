@@ -25,36 +25,32 @@
       <!-- Lumière ambiante -->
       <a-entity light="type: ambient; color: #BBB"></a-entity>
       <script>
-        AFRAME.registerComponent('joystick-movement', {
-          schema: {speed: {default: 2}},
+        AFRAME.registerComponent('thumbstick-move', {
+          schema: {speed: {default: 0.1}},
           init: function() {
-            this.direction = new THREE.Vector3();
-            this.rotationEuler = new THREE.Euler();
+            this.moveX = 0; this.moveY = 0;
+            this.el.addEventListener('axismove', (evt) => {
+              // For Oculus Quest 0:left-right, 1:forward-back
+              this.moveX = evt.detail.axis[0];
+              this.moveY = evt.detail.axis[1];
+            });
           },
-          tick: function(time, delta) {
-            let pads = navigator.getGamepads && navigator.getGamepads();
-            if(!pads) return;
-            // Try first two (0: left, 1: right for Oculus/Quest)
-            let moveX = 0, moveY = 0;
-            if(pads[0] && pads[0].connected && pads[0].axes.length > 1) {
-                moveX = pads[0].axes[0];
-                moveY = -pads[0].axes[1];
-            }
-            if(Math.abs(moveX) < 0.12 && Math.abs(moveY) < 0.12) return; // Deadzone
-            // Head orientation
-            let rig = this.el.object3D;
-            this.rotationEuler.setFromQuaternion(rig.quaternion, 'YXZ');
-            let yaw = this.rotationEuler.y;
-            this.direction.set(moveX, 0, moveY);
-            this.direction.applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
-            this.direction.multiplyScalar(this.data.speed * delta/1000);
-            rig.position.add(this.direction);
+          tick: function() {
+            // Ignore deadzone
+            if (Math.abs(this.moveX) < 0.2 && Math.abs(this.moveY) < 0.2) return;
+            // Move rig based on camera direction (Y)
+            var camera = this.el.querySelector('[camera]');
+            var angle = camera ? camera.object3D.rotation.y : 0;
+            var dx = -this.moveY * Math.sin(angle) + this.moveX * Math.cos(angle);
+            var dz = -this.moveY * Math.cos(angle) - this.moveX * Math.sin(angle);
+            this.el.object3D.position.x += dx * this.data.speed;
+            this.el.object3D.position.z += dz * this.data.speed;
           }
         });
       </script>
       <a-entity teleport-controls="enabled: false"></a-entity>
       <!-- Rig caméra + contrôleurs (Exercice 1) -->
-      <a-entity id="rig" joystick-movement>
+      <a-entity id="rig" thumbstick-move>
         <a-entity camera look-controls position="0 1.6 4"></a-entity>
         <a-entity laser-controls="hand: left" ></a-entity>
         <a-entity laser-controls="hand: right" ></a-entity>
