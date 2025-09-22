@@ -1,261 +1,39 @@
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>TP WebVR — Exercises 1-4 (A-Frame 0.9.2 + Physics 3.3.0)</title>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>TP4 – Exercice 1</title>
 
-  <!-- A-Frame core (0.9.2) -->
-  <script src="https://aframe.io/releases/0.9.2/aframe.min.js"></script>
+    <!-- A-Frame -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 
-  <!-- aframe-physics-system 3.3.0 (compatible with A-Frame 0.9.x) -->
-  <script src="https://cdn.jsdelivr.net/gh/n5ro/aframe-physics-system@v3.3.0/dist/aframe-physics-system.min.js"></script>
+    <!-- Physics -->
+    <script src="https://cdn.jsdelivr.net/gh/n5ro/aframe-physics-system@v4.0.1/dist/aframe-physics-system.min.js"></script>
 
-  <!-- aframe-extras 5.0.0 (movement-controls compatible with 0.9.x) -->
-  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@v5.0.0/dist/aframe-extras.min.js"></script>
+    <!-- Super Hands -->
+    <script src="https://cdn.jsdelivr.net/gh/wmurphyrd/aframe-super-hands-component@4.0.5/dist/aframe-super-hands.min.js"></script>
+  </head>
+  <body>
+    <a-scene shadow="type: pcfsoft" background="color: #ECECEC" physics="debug: false">
+      <!-- Lighting -->
+      <a-entity light="type: directional; intensity: 0.9" position="2 4 -2" cast-shadow></a-entity>
+      <a-entity light="type: ambient; intensity: 0.3"></a-entity>
 
-  <!-- super-hands 3.0.3 (grabbing) -->
-  <script src="https://cdn.jsdelivr.net/gh/wmurphyrd/aframe-super-hands-component@3.0.3/dist/aframe-super-hands.min.js"></script>
+      <!-- Ground -->
+      <a-plane static-body rotation="-90 0 0" width="20" height="20" color="#7BC8A4" shadow></a-plane>
 
-  <!-- Scripts: components for right-stick turning, gun behavior, spawner, and collision handling -->
-    <script>
-    // Right-stick turning component (reads gamepads to rotate the rig's yaw)
-    AFRAME.registerComponent('right-stick-turn', {
-      schema: {
-        sensitivity: { type: 'number', default: 0.09 },
-        deadzone: { type: 'number', default: 0.25 }
-      },
-      init: function () {
-        this.rig = document.querySelector('#rig');
-      },
-      tick: function () {
-        // Try to read gamepads and find axes for right stick (standard mapping: axes[2] horizontal)
-        var gps = navigator.getGamepads && navigator.getGamepads();
-        if (!gps) return;
-        for (var i = 0; i < gps.length; i++) {
-          var g = gps[i];
-          if (!g) continue;
-          // Heuristic: if gamepad has > 3 axes, assume it's a controller with right stick
-          if (g.axes && g.axes.length >= 4) {
-            var x = g.axes[2]; // often right stick X
-            if (Math.abs(x) > this.data.deadzone) {
-              // rotate rig yaw (note sign to match natural direction)
-              this.rig.object3D.rotation.y -= x * this.data.sensitivity;
-            }
-          }
-        }
-      }
-    });
+      <!-- Objects -->
+      <a-box dynamic-body position="0 1 -3" depth="1" height="1" width="1" color="tomato" shadow grabbable stretchable draggable></a-box>
+      <a-sphere dynamic-body position="2 1 -3" radius="0.5" color="royalblue" shadow grabbable stretchable draggable></a-sphere>
 
-    // Gun component: listens to trigger and spawns a projectile with physics
-    AFRAME.registerComponent('gun', {
-      init: function () {
-        var el = this.el;
-        // ensure gun has a body (dynamic-body added in markup)
-        // Listen for 'triggerdown' events on the controller when gun is grabbed
-        // We also listen for 'grab-start' to attach controller reference
-        el.addEventListener('grab-start', function (evt) {
-          // evt.detail.hand = the controller entity that grabbed it
-          el.setAttribute('body', 'type: dynamic');
-          el.grabbedBy = evt.detail.hand;
-        });
-        el.addEventListener('grab-end', function (evt) {
-          el.grabbedBy = null;
-        });
+      <!-- Player rig -->
+      <a-entity id="rig" movement-controls position="0 1.6 0">
+        <a-entity camera look-controls wasd-controls="acceleration: 50"></a-entity>
 
-        // Listen globally for triggerdown on rightHand to shoot if gun is currently grabbed by right hand
-        var rightHand = document.querySelector('#rightHand');
-        rightHand.addEventListener('triggerdown', function () {
-          // if gun is grabbed by right hand -> shoot
-          if (el.grabbedBy === rightHand) {
-            shootProjectile(el);
-          }
-        });
-      }
-    });
-
-    // Helper: create projectile in front of the gun and give initial velocity
-    function shootProjectile(gunEl) {
-      // compute world position and forward direction of gun
-      var gunObj = gunEl.object3D;
-      var forward = new THREE.Vector3(0, 0, -1);
-      forward.applyQuaternion(gunObj.quaternion);
-      var spawnPos = new THREE.Vector3();
-      spawnPos.copy(gunObj.position).add(forward.clone().multiplyScalar(0.6)).add(new THREE.Vector3(0, -0.05, 0));
-
-      // create a-sphere
-      var scene = document.querySelector('a-scene');
-      var proj = document.createElement('a-sphere');
-      proj.setAttribute('position', spawnPos);
-      proj.setAttribute('radius', 0.08);
-      proj.setAttribute('color', '#ff0');
-      proj.setAttribute('shadow', 'cast: true; receive: false');
-      // physics
-      proj.setAttribute('dynamic-body', 'mass: 0.2');
-      scene.appendChild(proj);
-
-      // wait until body is ready, then apply velocity/impulse
-      proj.addEventListener('body-loaded', function () {
-        // set velocity on cannon body
-        var speed = 10;
-        var body = proj.body;
-        body.velocity.set(forward.x * speed, forward.y * speed + 1.6, forward.z * speed);
-
-        // remove after 6s
-        setTimeout(function () {
-          if (proj.parentNode) proj.parentNode.removeChild(proj);
-        }, 6000);
-      });
-
-      // collision handling for target hits
-      proj.addEventListener('collide', function (e) {
-        var hitEl = e.detail.body.el;
-        if (!hitEl) return;
-        if (hitEl.classList && hitEl.classList.contains('target')) {
-          // play hit sound
-          var audi = document.createElement('a-entity');
-          audi.setAttribute('sound', 'src: #hit-sound; autoplay: true; volume: 1.0');
-          hitEl.appendChild(audi);
-
-          // spawn particle burst (some small spheres)
-          spawnBurst(hitEl.object3D.position);
-
-          // remove target
-          if (hitEl.parentNode) hitEl.parentNode.removeChild(hitEl);
-        }
-      });
-    }
-
-    // spawn small burst of spheres as particle effect
-    function spawnBurst(center) {
-      var scene = document.querySelector('a-scene');
-      for (var i = 0; i < 10; i++) {
-        (function (idx) {
-          var p = document.createElement('a-sphere');
-          p.setAttribute('radius', 0.03);
-          p.setAttribute('color', '#faa');
-          p.setAttribute('position', center.x + (Math.random() - 0.5) * 0.5 + '', center.y + (Math.random() - 0.5) * 0.5 + '', center.z + (Math.random() - 0.5) * 0.5 + '');
-          p.setAttribute('dynamic-body', 'mass: 0.02');
-          scene.appendChild(p);
-          p.addEventListener('body-loaded', function () {
-            var v = new THREE.Vector3((Math.random() - 0.5) * 4, Math.random() * 3, (Math.random() - 0.5) * 4);
-            p.body.velocity.set(v.x, v.y, v.z);
-          });
-          setTimeout(function () { if (p.parentNode) p.parentNode.removeChild(p); }, 2500);
-        })(i);
-      }
-    }
-
-    // Target spawner component: spawns targets periodically at random positions
-    AFRAME.registerComponent('target-spawner', {
-      schema: {
-        interval: { type: 'number', default: 2000 }, // ms
-        maxTargets: { type: 'number', default: 8 }
-      },
-      init: function () {
-        this.count = 0;
-        this.targetsParent = document.querySelector('#targets');
-        this.spawnTimer = setInterval(this.spawn.bind(this), this.data.interval);
-      },
-      spawn: function () {
-        if (this.targetsParent.children.length >= this.data.maxTargets) return;
-        var x = (Math.random() - 0.5) * 10;
-        var y = 0.5 + Math.random() * 2.5;
-        var z = -2 - Math.random() * 8;
-        var scene = document.querySelector('a-scene');
-
-        var t = document.createElement('a-box');
-        t.classList.add('target');
-        t.setAttribute('position', { x: x, y: y, z: z });
-        t.setAttribute('width', 0.6);
-        t.setAttribute('height', 0.6);
-        t.setAttribute('depth', 0.6);
-        t.setAttribute('color', '#8b0000');
-        t.setAttribute('dynamic-body', 'mass: 0.7');
-        t.setAttribute('shadow', 'cast: true; receive: true');
-
-        this.targetsParent.appendChild(t);
-      },
-      remove: function () {
-        clearInterval(this.spawnTimer);
-      }
-    });
-
-    // Attach right-stick-turn to rig for joystick-based yaw
-    document.addEventListener('DOMContentLoaded', function () {
-      var rig = document.querySelector('#rig');
-      rig.setAttribute('right-stick-turn', '');
-      // attach target-spawner to scene
-      document.querySelector('a-scene').setAttribute('target-spawner', '');
-    });
-    </script>
-  
-  <style>
-    body { margin: 0; background: #000; }
-    #info {
-      position: fixed;
-      left: 10px;
-      top: 10px;
-      z-index: 9999;
-      color: white;
-      background: rgba(0,0,0,0.45);
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-family: sans-serif;
-      font-size: 13px;
-    }
-  </style>
-</head>
-<body>
-  <div id="info">
-    Left stick: move — Right stick: turn — Grab: grip — Fire: trigger (right)
-  </div>
-
-  <a-scene id="scene"
-           shadow="type: pcfsoft"
-           physics="gravity: -9.8; debug: false"
-           background="color: #88c">
-    <!-- Assets -->
-    <a-assets>
-      <audio id="hit-sound" src="https://cdn.jsdelivr.net/gh/anthonyshort/sounds@master/pop-1.wav" crossorigin="anonymous"></audio>
-    </a-assets>
-
-    <!-- Directional light (casts shadows) -->
-    <a-entity light="type: directional; intensity: 0.9; castShadow: true"
-              position="4 8 -4" rotation="-40 35 0"></a-entity>
-
-    <!-- Ambient light (soft overall illumination) -->
-    <a-entity light="type: ambient; intensity: 0.45; color: #ffffff"></a-entity>
-
-    <!-- Floor (receives shadow, physics static) -->
-    <a-plane id="floor" rotation="-90 0 0" width="40" height="40" color="#556b2f"
-             shadow="receive: true" static-body></a-plane>
-
-    <!-- Simple objects (cast & receive shadows) -->
-    <a-box position="-2 0.5 -3" depth="1" height="1" width="1" color="#ff6347"
-           shadow="cast: true; receive: true" dynamic-body></a-box>
-
-    <a-sphere position="2 1 -3" radius="0.6" color="#87ceeb"
-              shadow="cast: true; receive: true" dynamic-body></a-sphere>
-
-    <!-- Target container (spawner will add targets here) -->
-    <a-entity id="targets"></a-entity>
-
-    <!-- Player rig: camera + left/right hands -->
-    <a-entity id="rig" position="0 1.6 3" movement-controls
-              movement-controls="speed: 0.08; fly: false; constrainToNavMesh: false">
-      <!-- Camera -->
-      <a-entity id="camera" camera look-controls="pointerLockEnabled: false"></a-entity>
-
-      <a-entity id="rightHand" oculus-touch-controls="hand: right" super-hands></a-entity>
-
-      <a-entity id="leftHand" oculus-touch-controls="hand: left" super-hands></a-entity>
-    </a-entity>
-
-    <!-- Simple gun prop on a stand (grab the gun to pick it up) -->
-    <a-box id="gun-stand" position="0 0.6 -1.5" depth="0.6" height="0.1" width="0.6" color="#666"></a-box>
-    <a-box id="gun" position="0 1 -1.5" depth="0.3" height="0.2" width="0.6" color="#222"
-           grabbable stretchable draggable dynamic-body shadow="cast: true; receive: true"
-           gun></a-box>
-  </a-scene>
-</body>
+        <!-- Controllers -->
+        <a-entity oculus-touch-controls="hand: left" super-hands></a-entity>
+        <a-entity oculus-touch-controls="hand: right" super-hands></a-entity>
+      </a-entity>
+    </a-scene>
+  </body>
 </html>
