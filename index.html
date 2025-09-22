@@ -116,8 +116,8 @@
       <!-- VR CAMERA + CONTROLLER HANDS + MOVEMENT LOGIC -->
       <a-entity id="rig" dual-stick-fps>
         <a-entity camera look-controls position="0 1.6 8"></a-entity>
-        <a-entity oculus-touch-controls="hand: left" super-hands></a-entity>
-        <a-entity oculus-touch-controls="hand: right" super-hands></a-entity>
+        <a-entity hand-controls="hand: left" super-hands></a-entity>
+        <a-entity hand-controls="hand: right" super-hands></a-entity>
       </a-entity>
       <a-entity teleport-controls="enabled: false"></a-entity>
     </a-scene>
