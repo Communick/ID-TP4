@@ -1,89 +1,172 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <title>TP WebVR Physics Lab (A-Frame 1.7.0 + Extras + Physics + SuperHands)</title>
-    <!-- The order matters for compatibility! -->
-    <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
-    <script> delete AFRAME.components["grabbable"]; </script>
-    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.2/dist/aframe-extras.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@c-frame/aframe-physics-system@4.1.0/dist/aframe-physics-system.min.js"></script>
-    <script src="https://unpkg.com/super-hands@3.0.5/dist/super-hands.min.js"></script>
-    <style>body {margin:0}</style>
-    <script>
-    // Gun shooting (grab gun, trigger = shoot)
+<head>
+  <meta charset="utf-8" />
+  <title>TP WebVR — Modern Physics/VR Lab</title>
+
+  <!-- A-Frame 1.7.0 -->
+  <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+
+  <!-- Remove legacy grabbable if needed -->
+  <script> try { delete AFRAME.components["grabbable"]; } catch(e){} </script>
+
+  <!-- Extras (movement-controls etc) -->
+  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.2/dist/aframe-extras.min.js"></script>
+
+  <!-- Modern Ammo physics -->
+  <script src="https://cdn.jsdelivr.net/npm/@c-frame/aframe-physics-system@4.1.0/dist/aframe-physics-system.min.js"></script>
+
+  <!-- Super-hands (for grabbing/interactions) -->
+  <script src="https://cdn.jsdelivr.net/gh/wmurphyrd/aframe-super-hands-component@4.0.5/dist/aframe-super-hands.min.js"></script>
+
+  <style>
+    body { margin:0; }
+    #hint { position:fixed; left:10px; top:10px; z-index:9999; background:rgba(0,0,0,0.5); color:#fff; padding:8px 10px; border-radius:6px; font-family:sans-serif; }
+  </style>
+
+  <script>
+    // Turn rig yaw using right stick in VR
+    AFRAME.registerComponent('gamepad-turn', {
+      schema: { sensitivity: { type: 'number', default: 0.06 }, deadzone: { type: 'number', default: 0.19 } },
+      tick: function () {
+        var rig = this.el;
+        var gps = navigator.getGamepads && navigator.getGamepads();
+        if (!gps) return;
+        for (var i = 0; i < gps.length; i++) {
+          var g = gps[i]; if (!g || !g.axes) continue;
+          // axes[2] right stick horizontal (Quest/WebXR)
+          if (g.axes.length >= 4) {
+            var rx = g.axes[2];
+            if (Math.abs(rx) > this.data.deadzone) {
+              rig.object3D.rotation.y -= rx * this.data.sensitivity;
+            }
+          }
+        }
+      }
+    });
+
+    // Shootable: only fire when gun grabbed & trigger pulled
     AFRAME.registerComponent('shootable', {
       init: function () {
-        this.el.addEventListener('triggerdown', () => {
-          const bullet = document.createElement('a-sphere');
-          bullet.setAttribute('radius', '0.08');
-          bullet.setAttribute('color', '#FFD700');
-          bullet.setAttribute('dynamic-body', 'mass:0.13');
-          // Put bullet at current weapon position
-          const pos = this.el.object3D.getWorldPosition(new THREE.Vector3());
-          bullet.setAttribute('position', `${pos.x} ${pos.y} ${pos.z}`);
-          const dir = new THREE.Vector3();
-          this.el.object3D.getWorldDirection(dir);
-          dir.multiplyScalar(-12);
-          bullet.addEventListener('body-loaded', function () {
-            bullet.body.velocity.set(dir.x, dir.y, dir.z);
-          });
-          this.el.sceneEl.appendChild(bullet);
-          setTimeout(()=>bullet.parentNode && bullet.parentNode.removeChild(bullet), 2200);
+        this.el.grabbedBy = null;
+        this.el.addEventListener('grab-start', evt => {
+          this.el.grabbedBy = evt.detail.hand;
+          this._onTrigger = () => shootFromGun(this.el);
+          if (this.el.grabbedBy) this.el.grabbedBy.addEventListener('triggerdown', this._onTrigger);
+        });
+        this.el.addEventListener('grab-end', evt => {
+          if (this.el.grabbedBy && this._onTrigger) this.el.grabbedBy.removeEventListener('triggerdown', this._onTrigger);
+          this.el.grabbedBy = null; this._onTrigger = null;
         });
       }
     });
-    // Spawn random targets with effect on hit
-    function spawnTarget() {
-      const target = document.createElement('a-box');
-      target.setAttribute('height', "0.5");
-      target.setAttribute('width', "0.5");
-      target.setAttribute('depth', "0.5");
-      target.setAttribute('color', "#EC3");
-      let x = Math.random()*10-5, y = 1.2+Math.random(), z = Math.random()*-7-2;
-      target.setAttribute('position', `${x} ${y} ${z}`);
-      target.setAttribute('dynamic-body', "");
-      target.addEventListener('collide', function (e) {
-        if (e.detail.body.el && e.detail.body.el.getAttribute('radius') === 0.08) {
-          target.setAttribute('color', '#05E');
-          setTimeout(()=>target.parentNode && target.parentNode.removeChild(target), 300);
-        }
+
+    // Helper: spawn physics projectile forward
+    function shootFromGun(gunEl) {
+      var scene = gunEl.sceneEl;
+      var proj = document.createElement('a-sphere');
+      proj.classList.add('projectile');
+      proj.setAttribute('radius', 0.085);
+      proj.setAttribute('color', '#ffd24d');
+      proj.setAttribute('shadow', 'cast:true;receive:false');
+      proj.setAttribute('dynamic-body', 'mass:0.13 linearDamping:0.01 angularDamping:0.9');
+
+      var gunWorldPos = new THREE.Vector3();
+      gunEl.object3D.getWorldPosition(gunWorldPos);
+      var dir = new THREE.Vector3();
+      gunEl.object3D.getWorldDirection(dir);
+      var spawn = gunWorldPos.clone().add(dir.clone().multiplyScalar(0.5)).add(new THREE.Vector3(0,0.05,0));
+      proj.setAttribute('position', `${spawn.x} ${spawn.y} ${spawn.z}`);
+
+      scene.appendChild(proj);
+
+      proj.addEventListener('body-loaded', function() {
+        proj.body.velocity.set(dir.x * 12, dir.y * 12 + 1.0, dir.z * 12);
       });
-      document.querySelector('a-scene').appendChild(target);
+
+      setTimeout(function () { if (proj.parentNode) proj.parentNode.removeChild(proj); }, 3700);
     }
-    setInterval(spawnTarget, 1750);
-    </script>
-  </head>
-  <body>
-    <a-scene physics="gravity: -9.8">
-      <!-- GROUND -->
-      <a-plane color="#7BC8A4" rotation="-90 0 0" width="40" height="40"
-        static-body shadow="receive: true"></a-plane>
-      <!-- PHYSICS OBJECTS TO GRAB/THROW -->
-      <a-box position="-1 2 -2" dynamic-body
-             super-hands="colliderEvent: collisions; grabStartButtons: triggerdown, gripdown; grabEndButtons: triggerup, gripup"
-             shadow="cast:true;receive:true"></a-box>
-      <a-sphere position="2 2 -4" radius="0.55" dynamic-body
-             super-hands="colliderEvent: collisions; grabStartButtons: triggerdown, gripdown; grabEndButtons: triggerup, gripup"
-             color="#96FF96" shadow="cast:true;receive:true"></a-sphere>
-      <a-cylinder position="0 4 -1" radius="0.35" height="1" dynamic-body
-             super-hands="colliderEvent: collisions; grabStartButtons: triggerdown, gripdown; grabEndButtons: triggerup, gripup"
-             color="#FF9090" shadow="cast:true;receive:true"></a-cylinder>
-      <!-- VR WEAPON (GUN) FOR SHOOTING BALLS -->
-      <a-box id="gun" position="0 1.5 0" color="#222" dynamic-body
-             width="0.28" height="0.12" depth="0.6"
-             super-hands="colliderEvent: collisions; grabStartButtons: triggerdown, gripdown; grabEndButtons: triggerup, gripup"
-             shootable></a-box>
-      <!-- LIGHTS -->
-      <a-entity light="type: directional; intensity: 1.1; castShadow: true" position="2 7 2"></a-entity>
-      <a-entity light="type: ambient; color: #BBB"></a-entity>
-      <!-- VR CAMERA + HANDS + MOVEMENT -->
-      <a-entity id="rig" movement-controls="speed: 0.22; fly: false;" position="0 1.6 8">
-        <a-entity camera look-controls wasd-controls position="0 0 0"></a-entity>
-        <a-entity oculus-touch-controls="hand: left" super-hands="colliderEvent: collisions"></a-entity>
-        <a-entity oculus-touch-controls="hand: right" super-hands="colliderEvent: collisions"></a-entity>
-      </a-entity>
-      <a-entity teleport-controls="enabled: false"></a-entity>
-    </a-scene>
-  </body>
+
+    // Target spawner (with pop on hit)
+    AFRAME.registerComponent('target-spawner', {
+      schema: { interval: { type: 'number', default: 1800 }, max: { type: 'number', default: 10 } },
+      init: function () { this.timer = setInterval(() => this.spawn(), this.data.interval); },
+      spawn: function () {
+        if (this.el.querySelectorAll('.target').length >= this.data.max) return;
+        var t = document.createElement('a-box');
+        t.classList.add('target');
+        var x = (Math.random() - 0.5) * 10, y = 1.0 + Math.random() * 2.0, z = -2 - Math.random() * 8;
+        t.setAttribute('position', `${x} ${y} ${z}`);
+        t.setAttribute('width', 0.6); t.setAttribute('height', 0.6); t.setAttribute('depth', 0.6);
+        t.setAttribute('color', '#d36');
+        t.setAttribute('shadow', 'cast:true;receive:true');
+        t.setAttribute('dynamic-body', 'mass:0.6 linearDamping:0.2 angularDamping:0.9');
+        t.addEventListener('collide', function (e) {
+          var other = e.detail && e.detail.body && e.detail.body.el;
+          if (!other) return;
+          if (other.classList && other.classList.contains('projectile')) {
+            spawnBurst(t.object3D.position);
+            if (t.parentNode) t.parentNode.removeChild(t);
+          }
+        });
+        this.el.appendChild(t);
+      },
+      remove: function () { clearInterval(this.timer); }
+    });
+
+    // Simple burst = 10 mini spheres
+    function spawnBurst(centerVec3) {
+      var scene = document.querySelector('a-scene');
+      for (var i=0;i<10;i++){
+        (function(){
+          var p = document.createElement('a-sphere');
+          p.setAttribute('radius', 0.03);
+          p.setAttribute('position', `${centerVec3.x + (Math.random()-0.5)*0.4} ${centerVec3.y + (Math.random()-0.5)*0.4} ${centerVec3.z + (Math.random()-0.5)*0.4}`);
+          p.setAttribute('color', '#ffd9d9');
+          p.setAttribute('dynamic-body', 'mass:0.025 linearDamping:0.38 angularDamping:0.92');
+          p.setAttribute('shadow', 'cast:true;receive:false');
+          scene.appendChild(p);
+          p.addEventListener('body-loaded', function() {
+            var v = new THREE.Vector3((Math.random()-0.5)*4, Math.random()*3, (Math.random()-0.5)*4);
+            p.body.velocity.set(v.x, v.y+2, v.z);
+          });
+          setTimeout(function(){ if (p.parentNode) p.parentNode.removeChild(p); }, 1600);
+        })();
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <div id="hint">
+    Left stick = move<br>
+    Right stick = turn<br>
+    Grab: trigger or grip<br>
+    Shoot: pull trigger while holding gun
+  </div>
+  <a-scene physics="gravity: -9.8; debug: false" background="color: #88c">
+    <a-assets> </a-assets>
+    <a-entity light="type: directional; intensity: 0.95" position="4 8 -2" rotation="-40 40 0"></a-entity>
+    <a-entity light="type: ambient; intensity: 0.35" ></a-entity>
+    <a-plane static-body color="#7BC8A4" rotation="-90 0 0" width="50" height="50" shadow="receive:true"></a-plane>
+    <!-- Player rig (left stick moves, right stick turns, VR hands, keyboard WASD also works) -->
+    <a-entity id="rig" position="0 1.6 1" movement-controls="speed:0.22;fly:false;" gamepad-turn>
+      <a-entity camera look-controls wasd-controls="acceleration:50" position="0 0 0"></a-entity>
+      <a-entity oculus-touch-controls="hand: left" super-hands="colliderEvent: collisions"></a-entity>
+      <a-entity oculus-touch-controls="hand: right" super-hands="colliderEvent: collisions"></a-entity>
+    </a-entity>
+    <!-- Physically interactive objects to grab/throw -->
+    <a-box position="-2 1.2 -3" depth="1" height="1" width="1" color="#ff7f50"
+           dynamic-body super-hands="colliderEvent: collisions" shadow="cast:true;receive:true"></a-box>
+    <a-sphere position="2 1.3 -3" radius="0.5" color="#6aa9ff"
+              dynamic-body super-hands="colliderEvent: collisions" shadow="cast:true;receive:true"></a-sphere>
+    <a-cylinder position="0 3 -2" radius="0.35" height="1.0" color="#ffb6c1"
+                dynamic-body super-hands="colliderEvent: collisions" shadow="cast:true;receive:true"></a-cylinder>
+    <!-- Gun: grab, use in VR or desktop, shoot balls -->
+    <a-box id="gun" position="0 1.5 -0.5" width="0.3" height="0.12" depth="0.6" color="#222"
+           dynamic-body super-hands="colliderEvent: collisions" shootable shadow="cast:true;receive:false"></a-box>
+    <!-- Target spawner -->
+    <a-entity target-spawner></a-entity>
+  </a-scene>
+</body>
 </html>
