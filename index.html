@@ -95,7 +95,7 @@ AFRAME.registerComponent('hover-highlight', {
     this.e0=(this.mat&&this.mat.emissive)? this.mat.emissive.clone():null;
     this.i0=(this.mat&&'emissiveIntensity'in this.mat)? this.mat.emissiveIntensity:0;
 
-    // ✅ Uniquement ces événements "propres"
+    // Uniquement ces événements "propres"
     el.addEventListener('hover-start', ()=>this.set(true));
     el.addEventListener('hover-end',   ()=>this.set(false));
   },
@@ -116,7 +116,7 @@ AFRAME.registerComponent('hover-highlight', {
 });
 
 
-// Spawner: spawn au chargement, puis respawn (A ou N). Table immobile à la racine.
+// Spawner initial et respawn (B) d'une table + trio d'objets physiques dessus
 AFRAME.registerComponent('table-spawn', {
   schema: { tableId: {default: 'tableTop'} },
 
@@ -217,7 +217,7 @@ let table = document.getElementById(this.data.tableId);
   scene.appendChild(this._make('a-box', {
     ...common,
     'dynamic-body': 'mass:1',
-    color: '#4CC3D9',
+    color: '#ed5555',
     width: 1.1, height: 1.1, depth: 1.1,
     position: `${tPos.x - 1.2} ${topY + 0.55} ${tPos.z - 0.6}`
   }));
@@ -226,7 +226,7 @@ let table = document.getElementById(this.data.tableId);
   scene.appendChild(this._make('a-sphere', {
     ...common,
     'dynamic-body': 'mass:1',
-    color: '#EF2D5E',
+    color: '#4455f2',
     radius: 0.9,
     position: `${tPos.x + 0.6} ${topY + 0.90} ${tPos.z - 0.8}`
   }));
@@ -880,9 +880,6 @@ AFRAME.registerComponent('one-shot-burst', {
   }
 });
 
-
-
-
 </script>
 
 
@@ -890,13 +887,12 @@ AFRAME.registerComponent('one-shot-burst', {
 <body>
   <div class="overlay">
     <strong>Commandes Quest</strong><br/>
-    🧭 Stick gauche : se déplacer (avant/arrière corrigé) • 🔁 Stick droit : rotation <b>lisse</b><br/>
-    🎯 Lasers par défaut depuis chaque manette • 🤏 Trigger : grab / drop<br/>
-    ➕ Spawn objet : bouton <b>A</b> (droite) ou <kbd>N</kbd> (clavier)
+    Stick gauche : se déplacer (avant/arrière corrigé) • Stick droit : rotation <b>lisse</b><br/>
+    Lasers par défaut depuis chaque manette • Trigger : grab / drop<br/>
+    Spawn objet : bouton <b>A</b> (droite) ou <kbd>N</kbd> (clavier)
   </div>
 
 <a-scene
-
   background="color:#20252b"
   renderer="colorManagement:true;physicallyCorrectLights:true;antialias:true;sortTransparentObjects:true"
   shadow="type:pcfsoft"
@@ -916,8 +912,8 @@ AFRAME.registerComponent('one-shot-burst', {
   <a-entity light="type:directional; intensity:1; castShadow:true" position="2 6 3" rotation="-45 30 0"></a-entity>
 
   <!-- sol -->
-  <a-plane rotation="-90 0 0" width="30" height="30"
-           color="#3c424a" material="roughness:1; metalness:0"
+  <a-plane rotation="-90 0 0" width="50" height="50"
+           color="#25cc51" material="roughness:1; metalness:0"
            shadow="receive:true" static-body></a-plane>
 
   <!-- RIG + caméra -->
@@ -987,13 +983,13 @@ AFRAME.registerComponent('one-shot-burst', {
 
 
 
-  <!-- ✅ Spawner indépendant (spawn unique au load) -->
+  <!-- Spawner indépendant (spawn unique au load) -->
   <a-entity table-spawn></a-entity>
 
   <a-entity spawn-targets="intervalMs:2000; maxActive:5; minX:-3; maxX:3; minZ:-4; maxZ:-1.0; baseY:1.5"></a-entity>
 
 
-  <a-sky color="#1b2026"></a-sky>
+  <a-sky color="#55dbed"></a-sky>
 </a-scene>
 
 </body>
